@@ -1,5 +1,71 @@
 # camsprep.com — Fixes Implemented Live (2026-07-31)
 
+**2026-07-31, later same day — full-scope pass begins.** The user (co-owner/
+operator of camsprep.com) requested implementation of every remaining item
+across both `seo-fix-plan-2026-07-30.md` and `seo-fix-plan-2026-07-31.md`,
+explicitly including previously-held `[HOLD IT]`/`[WE CAN IGNORE]` items, with
+each fix cross-checked against `CAMS_Prep_Complete_Brand_Source_of_Truth.pdf`.
+Plan: `seo-fix-plan-2026-07-31.md`'s "Content architecture" section covers the
+one checkpoint-gated batch (URL consolidation/redirects); everything else
+proceeds in priority order with per-change snapshot/verify/document.
+
+**Note on repo integrity:** `seo-fix-plan-2026-07-30.md` and
+`unimplemented-audit-fixes.md` were found deleted from the working directory
+twice during this session (not by any action taken here — most likely a side
+effect of one of the earlier `/seo audit` subagents touching this directory).
+Both were restored from git history (`git checkout HEAD -- <file>`) before
+continuing, and this file's updates are committed immediately after each
+batch to minimize the exposure window.
+
+## Batch A — Critical (all 4 items, verified live)
+
+1. **LCP lazy-load exclusion.** LiteSpeed Cache → Page Optimization → Media
+   Excludes: added `camsprep-logo-primary-1800px`, `camsprep-logo-header-compact-1800px`
+   (the sitewide header logo, previously carrying `fetchpriority="high"` while
+   simultaneously lazy-loaded — a direct contradiction flagged independently by
+   two audit streams), and `bundle-precision-final` (course-bundle thumbnails,
+   the measured LCP element on bundle pages). **Verified:** confirmed via fresh
+   guest fetch on homepage, both bundle pages, and mock-tests page — logo and
+   thumbnail no longer carry `data-lazyloaded`.
+2. **FAQ price self-contradiction** on `/beginners-guide-to-cams-certification/`
+   (post 7537): the FAQ answer read "$1,595 for public sector, $2,095 for
+   public sector" (repeated category); corrected the second instance to
+   "private sector," matching the page's own body text. Edited directly via
+   the Gutenberg `core/block-editor` data store (found the exact `core/freeform`
+   block containing the text, confirmed exactly one occurrence before
+   replacing, to avoid any risk of a wrong/partial match). **Verified:** live
+   fetch confirms old string gone, new string present.
+3. **Orphaned duplicate `BlogPosting` schema — actual source found and fixed,
+   not just patched again.** The existing WPCode snippet (10500) only buffered
+   `wp_head` output when `is_singular('post')` was true, so it never ran on
+   archive-type templates (e.g. the author page) where the same orphan schema
+   also fires. Investigated every other candidate first (all 15 WPCode
+   snippets, Rank Math's Author Archive settings, Rank Math Schema Templates —
+   all clean; Theme File Editor is disabled site-wide, so the literal source
+   file inside the theme could not be opened directly). Rewrote snippet 10500
+   to buffer the **entire front-end page output** (`template_redirect` priority
+   0 through natural buffer flush) rather than gating on page type, so the
+   same content-signature check (`http://schema.org` + `BlogPosting` together
+   — never legitimate) strips the orphan regardless of which template renders
+   it. **Verified:** confirmed clean (no orphan block) on the author page,
+   two separate blog posts, and the homepage, all via fresh uncached fetches.
+   Root theme file was not identified (no file-system/FTP access available
+   from WP Admin) — if full source-level removal is wanted later, that needs
+   host file-manager or FTP access; the current fix is fully effective as a
+   content-level filter regardless.
+4. **`/cams-mock-tests/` thin-content fix.** Added a new "How the CAMS Mock
+   Tests Work" section (H2 + ~200-word body) directly below the pricing cards,
+   covering: format (120 scored questions, 3.5-hour timing matching the real
+   exam), the domain-by-domain scoring breakdown, how the topic-wise/chapter-wise
+   tests fit between full attempts, and the question style/sourcing. Written to
+   the Source of Truth voice (clear, credible, direct, evidence-led — no
+   fabricated sample question, since no verified question-bank data was
+   available and getting AML/compliance content wrong on a paid page would be
+   a real trust risk). Typography left on the page's Global Text setting
+   (inherits Inter per the Source of Truth's Elementor config) rather than
+   overridden. **Verified:** live fetch confirms heading and body text present;
+   visual check confirms clean rendering with no layout regression.
+
 This tracks what was actually applied directly to the live production WordPress
 site today, in response to the `[OKAY TO CHECK AND IMPLEMENT]` items from
 `seo-fix-plan-2026-07-30.md`. All changes were made through WP Admin (Rank
