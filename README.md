@@ -1,51 +1,108 @@
+<div align="center">
+
 # CamsPrep
 
-Working repository for the ongoing improvement of **[camsprep.com](https://camsprep.com)** — a WordPress site selling CAMS certification study bundles and mock tests.
+**The working repo behind [camsprep.com](https://camsprep.com)** — CAMS certification study bundles and mock tests.
 
-> **This is not the source code of the site.** camsprep.com is a hosted WordPress install, edited through WP Admin (Rank Math, WPCode, LiteSpeed Cache, Tutor LMS). This repo holds a *snapshot* of the rendered front end plus the audit, planning, and handoff documents that drive changes made in the live admin. Nothing here builds or deploys.
+*Audit mirror · brand source of truth · the changelog the live site doesn't have*
+
+</div>
+
+---
+
+> [!IMPORTANT]
+> **There's nothing here to run.** camsprep.com is a hosted WordPress install, and every change gets made by hand in WP Admin — Rank Math, WPCode, LiteSpeed, Elementor, Tutor LMS. This repo doesn't build and it doesn't deploy.
+
+So what is it for? Three things.
+
+There's a **static mirror** of the site's rendered front end, which is what you audit against when you want to inspect markup or schema without poking production. There's the **brand PDF**, the final word on names, prices and voice. And there are the **working docs**, which exist because the live site keeps no history of its own — if we don't write down what changed, nobody knows.
+
+> [!NOTE]
+> **Start with `HANDOFF-2026-07-31.md`.** It's the most current picture of where things stand, and where it disagrees with the older plan docs, trust the handoff. It also walks back a few items earlier notes claimed were finished and weren't.
 
 ---
 
 ## What's in here
 
-| Path | What it is |
-| --- | --- |
-| `camsprep.com/` | Static mirror of the live site's rendered HTML/CSS/JS — the reference copy used for auditing markup, schema, and meta tags without hitting production. |
-| `_DataURI/`, `fonts.googleapis.com/`, `fonts.gstatic.com/`, `unpkg.com/`, `chimpstatic.com/`, `form-assets.mailchimp.com/`, `www.google-analytics.com/`, `www.googletagmanager.com/`, `eventcollector.mcf-prod.a.intuit.com/` | Third-party assets captured alongside the mirror (fonts, Lenis smooth-scroll, Mailchimp, GA/GTM). Artifacts of the capture, not maintained code. |
-| `CAMS_Prep_Complete_Brand_Source_of_Truth.pdf` | Canonical brand reference — naming, pricing, positioning, approved copy. Every content or schema change should be cross-checked against this before shipping. |
-| `HANDOFF-2026-07-31.md` | **Start here.** Current state of the SEO fix pass: what's verified live, what's still pending, what's explicitly blocked, plus operational gotchas. |
-| `fixes-implemented-2026-07-31.md` | Log of changes already applied to the live site, with notes on which turned out to be partial. |
-| `seo-fix-plan-*.md` | Dated audit findings and fix plans referenced by the handoff (content architecture, canonical/redirect mapping, priority tiers). |
-| `LICENSE` | LGPL-2.1. |
+```
+CamsPrep/
+├── camsprep.com/                              # the mirror — rendered HTML/CSS/JS
+├── fonts.googleapis.com/  fonts.gstatic.com/  # captured alongside it, unmaintained
+├── unpkg.com/  chimpstatic.com/  _DataURI/
+├── www.google-analytics.com/  www.googletagmanager.com/
+├── form-assets.mailchimp.com/  eventcollector.mcf-prod.a.intuit.com/
+│
+├── CAMS_Prep_Complete_Brand_Source_of_Truth.pdf
+├── HANDOFF-2026-07-31.md                      # ← read this first
+├── fixes-implemented-2026-07-31.md
+└── seo-fix-plan-*.md
+```
 
-## Working on this
+| File | Why you'd open it |
+| :--- | :--- |
+| **`HANDOFF-2026-07-31.md`** | The resume point. What's actually live, what's pending and in what order, what got skipped on purpose, and the gotchas worth knowing before you repeat somebody's afternoon. |
+| **`fixes-implemented-2026-07-31.md`** | What shipped, and how each item was verified. |
+| **`seo-fix-plan-*.md`** | The underlying audit findings and the canonical/redirect mapping. |
+| **`CAMS_Prep_..._Source_of_Truth.pdf`** | Anything a customer will see gets checked against this first. |
 
-1. **Read `HANDOFF-2026-07-31.md` first.** It supersedes the older plan docs where they disagree, and it flags items previously reported as done that turned out not to be.
-2. **Confirm you're logged into WP Admin** before touching anything. The site runs Hide My WP, which hides the login URL and silently redirects unauthenticated `/wp-admin/` requests to the homepage instead of showing a login form — so a "working" session can be silently logged out.
-3. **Cross-check against the brand PDF** for anything user-facing: prices, product names, author bylines, durations.
-4. **Snapshot before, verify after, revert on corruption.** Changes go into WP Admin; verification happens against the live URL.
-5. **Verify from outside the admin UI.** Confirm a change actually shipped with an unauthenticated fetch of the live page, e.g.:
+The domain-named folders came along for the ride when the mirror was captured — Google Fonts, Lenis, Mailchimp, the analytics endpoints. Nobody maintains those. They're just what the page pulled in.
 
-   ```js
-   fetch(url, { cache: 'no-store', credentials: 'omit' }).then(r => r.text())
-   ```
+---
 
-   Admin "saved" toasts and in-page state are not proof.
+## How to work on it
 
-## Gotchas worth knowing up front
+**1. Log into WP Admin, and confirm it took.**
+The site runs Hide My WP, which hides the login URL and quietly bounces unauthenticated `/wp-admin/` requests to the homepage instead of showing a login form. You can spend a while thinking you're logged in when you aren't.
 
-- **Cache purging:** LiteSpeed's "Purge All" does not reliably reach the QUIC.cloud edge. Use *Purge By → URL* with specific URLs, then confirm `x-qc-cache: miss` on a fresh request.
-- **WPCode saves can silently fail.** Hard-reload the snippet edit page and re-read the code before trusting a save.
-- **Rank Math's Schema Builder "Advanced Editor" (raw JSON) can hang the page.** For fields it doesn't expose, prefer a WPCode output-buffer snippet that rewrites the rendered JSON-LD.
-- **Theme File Editor is disabled and there's no FTP/file-manager access.** Anything needing a real template edit is blocked; output filtering is the available workaround.
+**2. Check it against the brand PDF.** Then snapshot, then change.
 
-## Guardrails
+**3. Verify from outside the admin.**
 
-- **Never fabricate structured data.** No `AggregateRating` without real reviews, no `sameAs` for accounts that don't exist, no invented `priceValidUntil`. If a value can't be verified, ask rather than ship.
-- **Ambiguous facts need a human answer**, not a best guess — conflicting durations, promo vs. permanent pricing, and which author byline should appear on public pages.
-- **URL consolidation and 301 redirects require explicit sign-off.** Present the full mapping before executing; these are the hardest changes to undo.
+```js
+fetch(url, { cache: 'no-store', credentials: 'omit' }).then(r => r.text())
+```
 
-## Housekeeping notes
+> [!WARNING]
+> A "saved" toast is not proof. Several fixes in the log were marked done on the strength of one and turned out never to have gone live. **If you didn't see it in a fresh guest response, it didn't happen.**
 
-- The mirror captures third-party integration identifiers (Mailchimp list/user paths, analytics endpoints) and the handoff docs contain internal references — snippet IDs, post IDs, a local Windows path, and a real person's name. Worth a look before this stays public, or consider making the repo private.
-- LGPL-2.1 is an unusual fit for a site mirror plus operational docs. If the licence choice wasn't deliberate, it's worth revisiting.
+**4. Write it up and commit right away.** Files have gone missing from the working directory mid-session before.
+
+---
+
+## Things that will bite you
+
+**LiteSpeed's "Purge All" doesn't reliably reach the QUIC.cloud edge.**
+Use `Purge By → URL` and check for `x-qc-cache: miss`. There are two separate cache layers, the plugin and the CDN — proving one is clear tells you nothing about the other.
+
+**WPCode's save button fails silently sometimes.**
+Hard-reload the edit page and re-read the code before you believe it.
+
+**Rank Math's raw-JSON Schema Builder can hang the page outright.**
+For fields the normal UI won't give you, use a WPCode output-buffer snippet that rewrites the rendered JSON-LD instead.
+
+**Theme File Editor is switched off and there's no FTP.**
+Anything needing a genuine template edit is blocked. Some of what's in place is a content-level filter rather than a fix at the source — worth remembering before you call something closed.
+
+**Plan docs have vanished from disk before.**
+Pull them back out of git history. Don't assume the content is gone.
+
+---
+
+## A few hard lines
+
+🚫 **Don't invent structured data.** No `AggregateRating` without real reviews, no `sameAs` pointing at accounts that don't exist, no made-up `priceValidUntil`. If a value can't be verified, it doesn't ship.
+
+❓ **When the facts conflict, ask.** Two different course durations, a discount that might or might not be a real promotion, whose name belongs on the author byline — don't pick the plausible one.
+
+🛑 **URL consolidation and 301s need sign-off.** Show the full mapping first. Those are the changes you can't quietly undo.
+
+🔒 **An inaccessible login is where work stops.** It's not a puzzle to solve.
+
+---
+
+## Licence, or the lack of one
+
+There isn't one, on purpose. **All rights reserved.** This is proprietary brand material and internal notes, not something offered for reuse. The third-party files caught up in the mirror stay under whatever licences they already had.
+
+> [!CAUTION]
+> The mirror and the docs carry integration IDs, post and snippet IDs, a local filesystem path, and a real person's name. If this repo is public, that's worth a decision rather than a default.
