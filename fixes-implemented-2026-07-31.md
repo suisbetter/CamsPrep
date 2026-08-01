@@ -1,5 +1,11 @@
 # camsprep.com — Fixes Implemented Live (2026-07-31)
 
+**⚠️ This pass was interrupted mid-task (logged out of WP Admin, hidden
+login URL). See `HANDOFF-2026-07-31.md` for the full resume state:
+what's done, what's explicitly skipped and why, everything still pending
+batch-by-batch, and operational gotchas discovered this session. Read that
+file first before continuing this work.**
+
 **2026-07-31, later same day — full-scope pass begins.** The user (co-owner/
 operator of camsprep.com) requested implementation of every remaining item
 across both `seo-fix-plan-2026-07-30.md` and `seo-fix-plan-2026-07-31.md`,
