@@ -4,7 +4,7 @@ A companion reference to `HANDOFF-2026-08-04.md`. That file is a
 chronological session log; this file reorganizes the same information by
 **problem → solution**, so a specific issue can be looked up without reading
 the full narrative history. Status reflects the most recent verification
-recorded in the handoff doc as of the Seventeenth follow-up (2026-08-05).
+recorded in the handoff doc as of the Nineteenth follow-up (2026-08-07).
 
 Legend: ✅ Resolved & verified live · 🟡 Partially resolved / needs re-check ·
 ⚠️ Open, needs human judgment or access this session doesn't have · 🔍 Open,
@@ -84,7 +84,7 @@ Math's dynamic output. Confirmed live for both files.
 | 5 | New 3-way keyword cannibalization on "why is the CAMS exam hard/getting harder" (4-5 URLs co-ranking) | Not addressed — never covered by the original redirect consolidation. | ⚠️ Open |
 | 6 | Near-duplicate pass-rate vs. passing-score pages, co-ranking, compounded by the Critical #12 contradiction | Contradiction itself fixed (see Critical #12); the underlying near-duplicate/cannibalization issue is separate and still open. | ⚠️ Open |
 | 7 | Possible orphaned content from the 5-way "what is CAMS" redirect merge (two absorbed pages' angles may not be covered by the canonical) | Flagged as a real risk, not confirmed — Wayback Machine was rate-limited during verification. Needs a direct pull of pre-redirect CMS revisions to check. | 🔍 Open |
-| 8 | Consolidated `/how-to-pass-cams-exam/` pillar duplicates 2 of its own spoke posts, no links from pillar to spokes | Not addressed. | ⚠️ Open |
+| 8 | Consolidated `/how-to-pass-cams-exam/` pillar duplicates 2 of its own spoke posts, no links from pillar to spokes | WPCode 10848 injects a "Related:" link to each spoke (`/common-cams-exam-mistakes/`, `/cams-exam-day-experience/`) directly after the matching `<h2>` via output-buffer regex — never touches Elementor content. Gotcha: first version matched on TOC-script-injected `id` attributes absent from the raw server HTML; fixed by matching heading text instead. | ✅ (2026-08-07) |
 | 9 | 9 redirected URLs + `/free-tests/` still listed in the XML sitemap despite live 301s | Applied Rank Math's Robots Meta → No Index to all 10 URLs (no direct "exclude from sitemap" toggle exists in this install); Rank Math's sitemap generator respects No Index. Confirmed all 10 gone from the sitemap. | ✅ |
 | 10 | 180KB of over-inlined CSS in `<head>` | Same fix as Critical #7 (Elementor External File CSS). | 🟡 (see Critical #7 status) |
 | 11 | Render-blocking jQuery core script (only one of 85 scripts lacking `defer`) | Same fix as Critical #7 (removed from LiteSpeed's defer-exclusion list). | ✅ |
@@ -99,11 +99,11 @@ Math's dynamic output. Confirmed live for both files.
 |---|---|---|---|
 | 1 | `llms.txt` header falsely implied an AIOSEO plugin conflict | Checked directly — AIOSEO is not installed; the file was just a stale leftover, not an active conflict. No action needed beyond deleting the file (Critical #4). | ✅ |
 | 2 | `http://www.camsprep.com/` takes a 2-hop redirect instead of 1 | Root cause is server/CDN-layer routing (protocol-only redirect before WordPress loads), outside WP-admin's reach. **Needs:** a Hostinger support ticket or `.htaccess`-level fix. | ⚠️ Open, needs infra access |
-| 3 | A bulk lastmod-republish pattern touches `post_modified` across unrelated posts/pages/courses in tight windows | Not root-caused — needs identification of whatever plugin/scheduled task is doing this. | 🔍 Open |
+| 3 | A bulk lastmod-republish pattern touches `post_modified` across unrelated posts/pages/courses in tight windows | Root-cause hypothesis found (2026-08-07): a custom "RankMath REST API Access" plugin exists specifically "for Claude Blog Publisher" — an automated content-publishing pipeline with a forward-scheduled content calendar. REST-API queries confirmed clusters of 3-8 thematically-related but otherwise untouched posts sharing one exact modified-minute, on days with no matching creation/publish event, consistent with a periodic internal-linking/maintenance pass. Not confirmed — no file access to read the plugin's source. | 🟡 Hypothesis found, needs confirmation |
 | 4 | Success-story pages typed as `BlogPosting` instead of `Review` | Harmless as-is; only worth restructuring if pursuing bundle `aggregateRating` later. | ⚠️ Deferred, not urgent |
 | 5 | Possible duplicate bundle URLs (alias vs. canonical bundle slugs) | Checked directly: the alias URLs are 301 redirects to the canonical bundle pages, not separate indexable duplicates. | ✅ (confirmed non-issue) |
 | 6 | `/pricing/` had no `Offer`/price schema despite 4 paid tiers | WPCode 10703 adds an `OfferCatalog` node with 5 real `Offer` entries (prices and URLs read directly off the live page, not invented). | ✅ |
-| 7 | Two inconsistent Course/Offer schema templates coexist (individual course page vs. bundle/hub template) | Not unified — the individual course template has fields (numeric price, `Offer.url`, `aggregateRating`) the bundle template lacks. | ⚠️ Open |
+| 7 | Two inconsistent Course/Offer schema templates coexist (individual course page vs. bundle/hub template) | `Offer.url`/`Course.url` gap closed via WPCode 10847 (2026-08-07) — fills in `url` from `get_permalink()` only where empty, verified live on all 3 bundles with no effect on the already-correct course-page template. `aggregateRating` gap remains unaddressed (bundles have 0 real reviews, so none invented per this repo's hard line). | 🟡 Partially resolved |
 | 8 | 436KB of available image savings per Lighthouse despite an Imagify bulk-optimization pass | Concentrated on images uploaded after the optimization job ran; needs a fresh optimization pass. | ⚠️ Open |
 | 9 | Preconnect hint targeted the wrong font domain (`fonts.gstatic.com` had it, `fonts.googleapis.com` — the actual first-hop domain — only had a weaker prefetch hint) | Added both domains to LiteSpeed's DNS Preconnect field. | ✅ |
 | 10 | Broken apostrophe encoding (`�`) on 2 Knowledge Hub post titles | Checked directly (raw HTML + browser rendering) — not reproducible; either already fixed or a transient audit artifact. No action taken. | ✅ (non-issue) |
