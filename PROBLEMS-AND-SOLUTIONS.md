@@ -10,7 +10,7 @@ Legend: ✅ Resolved & verified live · 🟡 Partially resolved / needs re-check
 ⚠️ Open, needs human judgment or access this session doesn't have · 🔍 Open,
 needs investigation
 
-* Note: I approve all the changes in the document
+* Note: I approve all the changes in the document(Shafi Uddin)
   
 ---
 
