@@ -172,3 +172,41 @@ Field CrUX data still shows "Core Web Vitals Assessment: Failed" (LCP 4.7s mobil
 5. **Pre-existing `instant.page` console error** — conclusively unrelated to all performance work done across sessions 2–4; still worth its own investigation since Lighthouse's Best Practices score can penalize console errors (though it's currently at 100 regardless).
 
 3 of 4 categories (Accessibility, Best Practices, SEO) are green and stable across every run this session. Performance improved on desktop (79 → 84) but not yet at 90+ on either device; mobile is roughly flat (59 vs. 61 at the last checkpoint, within normal lab-run noise). No regressions were left live — every real issue found (two WebP/JS conflicts, the CSS Combine convergence-time cost) was caught and reverted before being shipped.
+
+## Session 5 (same day) — both known WebP/JS conflicts genuinely fixed, but a new, more severe regression surfaced and was reverted
+
+User asked to keep fixing performance issues. Picked up exactly where session 4 left off: the Swiper carousel conflict blocking Imagify's WebP `<picture>` delivery.
+
+### Both JS conflicts fixed for real this time
+
+- Added a WPCode JS snippet (site-wide footer, "Perf: fix Swiper lazy-load for Imagify tags") that patches the actual incompatibility: Swiper's own lazy-load module knows how to reveal `<img data-src>` but not `<picture><source data-srcset>...<img data-src>` — Imagify's `<picture>` rewrite. The snippet uses `IntersectionObserver` to detect when a `<picture>` scrolls near the viewport, then promotes `data-src`/`data-srcset` to real `src`/`srcset` on the `<img>` and `<source>` elements (i.e., manually completing what Swiper's lazy module doesn't understand for `<picture>`).
+- Re-enabled Imagify's "Display images in Next-Gen format on the site." Verified both previously-broken elements now render correctly: the 3 course-bundle Tutor cards (LiteSpeed-lazy-load conflict, already fixed in session 4) and, this time, the client-logos Swiper carousel and the testimonials Swiper carousel — both confirmed via screenshots and by advancing the carousels through real Swiper API calls (`slideNext()`), not just a static page load. No broken image icons anywhere, 94 `<picture>` elements present, real webp bytes confirmed via curl (57 `<picture>` tags in raw server HTML, e.g. `starter-cams-bundle-precision-final.png.webp`).
+- Console check: only the known pre-existing `instant.page` error, no new errors from the fix.
+
+### New, more severe problem found: Lighthouse-measured LCP blew up to 20+ seconds
+
+- First PSI run after enabling WebP: LCP 21.1s, FCP 10.7s (vs. a normal baseline of ~4-7s lab LCP). Initially suspected a cold-cache artifact (cache had just been purged) — a known gotcha from session 2's notes. Warmed the cache (`x-qc-cache: hit` confirmed, real-browser page load looked and felt normal, fast, no visible jank) and reran. **LCP was still 20.5s.**
+- Suspected the new WPCode snippet's `MutationObserver({childList: true, subtree: true})` on `document.documentElement` — a document-wide observer that could be expensive if the page mutates DOM frequently (Swiper loop mode continuously clones/removes slide elements). Rewrote the snippet to drop the live MutationObserver entirely, replacing it with 3 bounded delayed rescans (500ms/1500ms/3000ms) — cheap, one-shot, sufficient to catch Swiper's loop-clone slides created shortly after init. Purged caches, warmed again, reran PSI.
+- **LCP was still 20.5s** with the MutationObserver removed — ruling out that snippet as the cause. The severe LCP inflation is specifically tied to Imagify's WebP `<picture>` delivery being live, reproducible only under Lighthouse's throttled mobile CPU/network simulation (not observable in normal fast browsing, which is why it wasn't caught immediately by visual inspection).
+- **Reverted Imagify's Next-Gen delivery back off** rather than keep investigating live on production — this is a clear, severe, reproducible regression (LCP roughly 3-4x worse than baseline), not something to leave enabled while diagnosing further. Purged both cache layers, confirmed via fresh PSI run: Mobile Performance back to 61, Desktop back to 85 (slightly above the 84 baseline) — clean recovery, no lingering effect.
+- Deactivated the WPCode Swiper-fix snippet too (no longer doing anything useful with WebP off), left in place inactive for a future attempt — the underlying fix logic (bounded rescans, no live MutationObserver) is sound and worth reusing once the deeper LCP issue is understood.
+
+### Updated conclusion on Imagify WebP delivery
+
+Both previously-identified JS conflicts (LiteSpeed's own lazy-load, Swiper's lazy-load) are now genuinely fixed and verified working. That was necessary but not sufficient — there is a **third, more serious problem**: something about serving images as `<picture>`/`<source type="webp">` at scale (94 elements site-wide) causes Lighthouse's throttled-CPU trace to report LCP in the 20+ second range, a severe regression from the ~4-7s baseline, despite the real page loading fine on a warm cache in normal browsing. Not root-caused this session — plausible directions for next time: the ~3x DOM node increase from wrapping every image in `<picture><source>` may interact badly with Lighthouse's CPU-throttled simulation (see "Optimize DOM size" audit, which was flagged); or Imagify's `<picture>` rewrite might be happening via a PHP output-buffer regex that's measurably slow to execute per-request at this page's image count, inflating TTFB/server-timing under throttling. Needs a dedicated investigation (e.g., compare Lighthouse's trace/timeline with WebP on vs. off, look at long tasks and where they originate) before attempting this lever again.
+
+### Final state and scores (end of session)
+
+- Imagify "Display images in Next-Gen format on the site": **OFF** (reverted)
+- LiteSpeed Lazy Load Images: **OFF** (kept — independently safe, still correct with WebP off)
+- WPCode snippet 10920 ("Perf: fix Swiper lazy-load for Imagify tags"): **Inactive** (kept in place, ready to reactivate once the WebP/LCP issue is understood)
+- All other settings unchanged from session 4's final state
+
+| Category | Mobile | Desktop |
+|---|---|---|
+| Performance | 61 | 85 |
+| Accessibility | 97 ✅ | 97 ✅ |
+| Best Practices | 100 ✅ | 100 ✅ |
+| SEO | 100 ✅ | 100 ✅ |
+
+Net change this session: zero regressions left live (the severe LCP issue was caught and reverted before being shipped), one incremental finding banked (both JS conflicts are solvable, but a third and more serious blocker exists), Performance essentially unchanged from session 4's baseline. The Imagify WebP lever remains the single biggest potential win but is now confirmed **not safe to enable** until the Lighthouse-throttled LCP regression is understood — this is a harder problem than originally scoped (not just JS library compatibility) and warrants dedicated investigation time rather than another quick attempt.
