@@ -107,3 +107,67 @@ Desktop Performance dipping below its earlier 79–80 baseline is very likely a 
 
 1. **WebP delivery is the single biggest lever left** (potentially cutting most images site-wide by ~80%, far bigger than the 3-thumbnail issue this was originally scoped to) — but needs the LiteSpeed-lazy-load conflict resolved first. Options for next time: disable LiteSpeed's own lazy-load and rely on the images' native `loading="lazy"` attribute instead (removes the conflicting mechanism entirely, native lazy-load doesn't use a hidden-until-loaded CSS pattern), or contact Imagify/LiteSpeed support about the specific incompatibility, or test the rewrite-rule method against actual live traffic to see if QUIC.cloud's CDN handles it better than the docs suggest.
 2. Course-bundle thumbnail right-sizing needs Tutor LMS template-level access (not available via WPCode/browser) — out of reach this session.
+
+## Session 4 (same day) — LiteSpeed lazy-load fix, second WebP conflict found, CSS Combine+UCSS attempt, third-party cost investigated
+
+User asked to fix all remaining performance issues. Picked up the WebP delivery lever flagged at the end of session 3.
+
+### Imagify WebP delivery: retried, hit a second conflict, reverted again
+
+- Applied session 3's own recommended fix: disabled LiteSpeed Cache's own JS-based "Lazy Load Images" (Media Settings tab), relying on the images' pre-existing native `loading="lazy"` attribute instead. Re-enabled Imagify's "Display images in Next-Gen format on the site." Verified: the three course-bundle cards now render correctly with `<picture>` tags — the original LiteSpeed-lazy-load conflict is genuinely fixed by this change, confirmed via computed styles (`visibility` no longer stuck hidden) and a full page reload.
+- **Found a second, distinct conflict**: the client-logos ticker (HSBC, Credit Suisse, etc.), built with Swiper.js, went to broken-image icons. Diagnosed via DOM inspection — Swiper's own lazy-load module (`swiper-lazy` class, `data-src`/`data-srcset` pattern) marked each slide `swiper-lazy-loaded` but never actually set `img.src`, because Swiper's lazy-load doesn't natively support `<picture>`-wrapped images the way Imagify rewrites them.
+- Given two independent JS-library conflicts found in immediate succession (LiteSpeed's own lazy-load, then Swiper's), judged the risk of further undiscovered conflicts elsewhere on the site as too high to responsibly leave WebP delivery on without a full site-wide audit of every carousel/gallery widget. **Reverted Imagify's Next-Gen delivery back off.** Kept the LiteSpeed-lazy-load-disabled fix, since it's independently correct (redundant with native lazy-loading) and doesn't regress anything with WebP off.
+
+### CSS Combine + Generate UCSS: attempted, reverted after a transient score drop
+
+- Tried enabling "Generate UCSS" (removes unused CSS per-page) to address the "Reduce unused CSS" opportunity. Found it was silently non-functional — the plugin's own UI stated "This option is bypassed because CSS Combine option is OFF."
+- Re-enabled CSS Combine (previously turned off in the very first session specifically to fix a render-blocking issue) on the reasoning that Critical CSS, now live, should mitigate the original render-blocking risk from combining all CSS into one file.
+- This triggered a temporary Performance score drop to **49** (from 61): re-enabling Combine changed the site's CSS structure, which invalidated all previously-generated Critical CSS — pages were serving the old CCSS (mismatched to the new combined stylesheet) while fresh CCSS regenerated across the site, a multi-hour convergence process via the crawler.
+- Not willing to leave the site in a degraded state for hours waiting on regeneration. **Reverted CSS Combine and Generate UCSS back to OFF**, returning to the previously-confirmed-stable Critical-CSS-only configuration. Used LiteSpeed's Toolbox to explicitly purge the stale "Critical CSS" and "Unique CSS" generated files (rather than waiting for them to naturally expire) so fresh CCSS matching the reverted config would regenerate immediately instead of serving stale mismatched files.
+- **Conclusion**: CSS Combine + UCSS is architecturally the right next step for the remaining unused-CSS savings, but needs a session structured around a multi-hour wait (or an off-peak deploy window) for CCSS to fully reconverge — not a quick toggle.
+
+### Mailchimp/third-party cache-lifetime cost: confirmed out of reach via WordPress
+
+- Attempted to use LiteSpeed's "JS Delayed Includes" (Tuning tab) with `mailchimp.com` and `chimpstatic.com` entries, to delay-load the 135 KiB Mailchimp embed script flagged under "Use efficient cache lifetimes."
+- Verified via a raw guest-HTML fetch that **zero** occurrences of "mailchimp" or "chimp" exist anywhere in server-rendered HTML. The script is injected at runtime by **Google Tag Manager** (confirmed present site-wide via `googletagmanager`/`gtag` in the HTML), not written into the page by WordPress — so LiteSpeed's server-side HTML rewriting has nothing to intercept.
+- **Conclusion**: this specific 135 KiB cost is out of reach without direct access to the GTM container (a separate Google service/dashboard, no credentials available this session). Left the harmless (no-op) JS Delayed Includes entries in place in case a future GTM-side change makes them useful.
+
+### QUIC.cloud CDN cache: session expired, purged by user directly
+
+- Mid-session, the QUIC.cloud dashboard session (used to verify/purge the CDN edge cache) had logged out. Per this project's hard rule on credentials, declined to enter the account password myself even when the user offered to share it — asked the user to log in on the shared browser session themselves.
+- User logged into QUIC.cloud on their own device and purged the CDN cache directly. Confirmed the purge took effect via `x-qc-cache: miss` on a fresh fetch to camsprep.com afterward.
+
+### Final verification
+
+- Homepage screenshot + console check on the live, freshly-purged site: renders correctly, only the known pre-existing `instant.page` console error present (conclusively unrelated to any session's changes — see session 2).
+- Fresh PageSpeed Insights run (both cache layers purged, `x-qc-cache: miss` confirmed) for the final, current configuration:
+
+| Category | Mobile | Desktop |
+|---|---|---|
+| Performance | 59 | 84 |
+| Accessibility | 97 ✅ | 97 ✅ |
+| Best Practices | 100 ✅ | 100 ✅ |
+| SEO | 100 ✅ | 100 ✅ |
+
+Field CrUX data still shows "Core Web Vitals Assessment: Failed" (LCP 4.7s mobile / 3.4s desktop, red) — expected, since field data lags any front-end change by weeks and hasn't caught up to Critical CSS going live yet.
+
+### Final live configuration (end of session)
+
+- CSS Minify: ON, CSS Combine: OFF, Generate UCSS: OFF
+- Load CSS Asynchronously (Critical CSS): ON, CCSS Per URL: ON, Inline CSS Async Lib: ON
+- Font Display Optimization: Swap
+- JS Minify: OFF, JS Delayed Includes: `mailchimp.com`, `chimpstatic.com` (harmless no-op)
+- LiteSpeed Lazy Load Images (Media Settings): OFF — new fix, kept (redundant with native `loading="lazy"`, and required for any future WebP retry)
+- Imagify "Display images in Next-Gen format on the site": OFF
+- WPCode snippet 10913 (thumbnail right-sizing): Inactive
+- Both LiteSpeed origin cache and QUIC.cloud CDN edge cache purged and confirmed fresh (`x-qc-cache: miss`)
+
+### What's still open, for a future session
+
+1. **Imagify WebP delivery** — biggest single remaining lever (~80% image-weight reduction site-wide), blocked by JS library conflicts. Two found and fixed/avoided so far (LiteSpeed's own lazy-load — fixed; Swiper carousel — avoided by reverting). A future attempt should audit every carousel/gallery/lazy-loading widget site-wide *before* re-enabling, not discover conflicts one at a time in production.
+2. **CSS Combine + Generate UCSS** — architecturally correct for the remaining unused-CSS savings, but needs a session with a multi-hour window to let Critical CSS fully reconverge after the CSS structure change, ideally off-peak.
+3. **Course-bundle thumbnail right-sizing** — needs Tutor LMS template-level access, not reachable via WPCode/browser automation.
+4. **Mailchimp/GTM third-party cache-lifetime cost (135 KiB)** — needs direct access to the Google Tag Manager container; not a WordPress-side fix.
+5. **Pre-existing `instant.page` console error** — conclusively unrelated to all performance work done across sessions 2–4; still worth its own investigation since Lighthouse's Best Practices score can penalize console errors (though it's currently at 100 regardless).
+
+3 of 4 categories (Accessibility, Best Practices, SEO) are green and stable across every run this session. Performance improved on desktop (79 → 84) but not yet at 90+ on either device; mobile is roughly flat (59 vs. 61 at the last checkpoint, within normal lab-run noise). No regressions were left live — every real issue found (two WebP/JS conflicts, the CSS Combine convergence-time cost) was caught and reverted before being shipped.
