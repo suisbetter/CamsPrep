@@ -210,3 +210,64 @@ Both previously-identified JS conflicts (LiteSpeed's own lazy-load, Swiper's laz
 | SEO | 100 ✅ | 100 ✅ |
 
 Net change this session: zero regressions left live (the severe LCP issue was caught and reverted before being shipped), one incremental finding banked (both JS conflicts are solvable, but a third and more serious blocker exists), Performance essentially unchanged from session 4's baseline. The Imagify WebP lever remains the single biggest potential win but is now confirmed **not safe to enable** until the Lighthouse-throttled LCP regression is understood — this is a harder problem than originally scoped (not just JS library compatibility) and warrants dedicated investigation time rather than another quick attempt.
+
+## Session 6 (same day) — root cause found: a stuck site crawler, not WebP itself
+
+User asked to investigate and fix the LCP regression from session 5. Went looking for the actual mechanism rather than accepting "WebP is unsafe" as a final answer.
+
+### Ruled out: hero image corruption
+
+First hypothesis was that Imagify's `<picture>` rewrite might double-wrap the hero image (which already has its own hand-built `<picture><source>` markup with `fetchpriority="high"`, `loading="eager"`, `class="skip-lazy"`) — nested `<picture>` tags could plausibly delay LCP. Re-enabled WebP, purged and warmed cache, and diffed the raw hero markup byte-for-byte against the WebP-off baseline: **identical**. Imagify correctly skips rewriting an image whose source is already `.webp` — no double-wrapping, no attribute loss, preload `<link>` tags unchanged and still matching. This hypothesis was wrong.
+
+### Discovered the cache-warming method itself was unreliable
+
+While re-testing, found that "purge, then curl 3× a few seconds apart, then trust `x-qc-cache: hit`" — the exact warming method used earlier in the session — can report `hit` while actually serving a **stale pre-change response** (a race between QUIC.cloud's purge propagating and the warming requests landing). Confirmed by checking actual page content (`<picture>` tag count), not just the cache-status header, after a "warm" fetch: it showed 1 picture tag (the old, WebP-off state) despite `x-qc-cache: hit` and despite Imagify's setting being genuinely re-enabled in wp-admin moments earlier. This means **the original 20+ second LCP reading from session 5 is not fully trustworthy** — it may have been testing an inconsistent, mid-transition cache state rather than a true steady-state comparison. Fixed the verification method: after any purge + re-enable, fetch the canonical URL and grep the response body for the expected markup (not just the cache header) before trusting a "warm" state.
+
+### Re-tested properly: the regression is real but far more moderate than first measured
+
+With cache genuinely verified warm and serving the WebP-enabled HTML (57 `<picture>` tags confirmed in the response body), re-ran PageSpeed Insights: **LCP 9.2s** (vs. ~4.3–4.7s baseline) and **Performance 56** (vs. 61 baseline) — a real regression, but roughly 2x on LCP, not the 4-5x seen in the first (likely cache-race-corrupted) test.
+
+The LCP breakdown for this run was the key clue:
+
+| Subpart | Duration |
+|---|---|
+| Time to first byte | 160 ms |
+| **Resource load delay** | **2,570 ms** |
+| Resource load duration | 300 ms |
+| Element render delay | 250 ms |
+
+The hero image itself (confirmed unaffected, `fetchpriority="high"`, preloaded) sits waiting **2.57 seconds** before the browser even starts fetching it — despite the preload hint. This pattern (a preloaded, high-priority resource still getting delayed) points at contention: something else is consuming the browser's attention/connections before it can act on the preload. The same run's "Render-blocking requests" audit showed **5,150 ms** estimated savings across ~19 individual CSS files — much worse than the ~2.8–2.9s previously established as the "Critical CSS working correctly" baseline in session 4. That gap was the real lead.
+
+### Found it: the site's LiteSpeed crawler was stuck, not running automatically
+
+Checked LiteSpeed Cache → Crawler → Summary and found the "Guest - WebP" crawler (the single site-wide crawler responsible for warming LiteSpeed's page cache and, as a side effect of visiting each URL, triggering QUIC.cloud's Critical CSS/Unique CSS/LQIP generation) had **`Ended reason: stopped_reset`** — all 50 site URLs sitting in "Waiting to be Crawled," zero successfully crawled, zero cached. It's configured to auto-run every 10 minutes, but was not actually completing runs — almost certainly a WP-Cron reliability issue (WP-Cron only fires on real page visits; without one landing at the right moment, or with something interrupting it, scheduled crawls silently stall rather than erroring visibly).
+
+This means **Critical CSS regeneration had not been reliably happening in the background for an unknown period** — plausibly since session 4's CSS Combine experiment invalidated the existing CCSS and the crawler never successfully finished regenerating it. This directly explains the erratic, inconsistent Performance numbers seen across sessions 4–6 (61 one run, 56 the next, 20s+ LCP on another) — the underlying cause was never really about WebP specifically; it was that CCSS convergence has been silently broken this whole time, and testing against a moving, half-regenerated target produces noisy, sometimes-terrible results regardless of which image-delivery setting is being toggled.
+
+**Fixed the immediate symptom**: manually triggered the crawler ("Manually run"). It completed successfully this time — `Ended reason: end`, 47 URLs successfully crawled, 3 already cached, 0 stuck. QUIC.cloud's Critical CSS request queue grew afterward (52 → 83) as a result — expected, since the crawler had just queued fresh CCSS generation for every page it visited; that queue processes asynchronously and will take real time (likely hours, consistent with earlier convergence-time findings) to fully drain.
+
+### Reverted WebP, confirmed a clean, improved baseline
+
+Turned Imagify's Next-Gen delivery back off (verified via picture-tag count: back to 1, hero only), purged and properly warmed both cache layers, and re-ran PageSpeed Insights:
+
+| Category | Mobile | Desktop |
+|---|---|---|
+| Performance | **62** | **86** |
+| Accessibility | 97 ✅ | 97 ✅ |
+| Best Practices | 100 ✅ | 100 ✅ |
+| SEO | 100 ✅ | 100 ✅ |
+
+Both Performance scores are slightly *better* than the pre-session baseline (61/85) — plausibly because fixing the stuck crawler improved the site's overall cache/CCSS health even with WebP untouched.
+
+### Corrected conclusion
+
+The earlier session-5 finding — "WebP delivery causes a severe, unexplained LCP regression, don't retry" — was **too pessimistic and pinned on the wrong cause**. The real story: this site's Critical CSS crawler has been silently stuck, producing inconsistent, sometimes-bad performance test results independent of the WebP toggle. WebP delivery does still show a real, moderate cost when tested against inconsistent CCSS state (56 vs. 61, LCP 9.2s vs. 4.3s) — but that comparison isn't fair or final, since the baseline itself was being measured against a partially-broken CCSS pipeline.
+
+**Not re-enabled this session** — the responsible next step is to let the crawler's freshly-triggered CCSS regeneration (83 queued requests) actually converge over real time, confirm the crawler keeps completing successfully on its own 10-minute schedule (not stuck again), and only then re-test WebP against a genuinely stable, converged baseline. Re-enabling WebP right now, while CCSS is mid-regeneration, would reproduce the same noisy, misleading result.
+
+### What's still open, updated
+
+1. **Crawler reliability** — confirm the "Guest - WebP" crawler keeps completing on its own going forward (check LiteSpeed Cache → Crawler → Summary; `Ended reason` should read `end`, not `stopped_reset`). If it stalls again, either keep manually triggering it periodically or set up a real system cron hook (LiteSpeed's crawler settings page links to "Hooking WP-Cron into the System Task Scheduler" — likely needs host-level cron access, outside what's reachable via wp-admin alone).
+2. **Imagify WebP delivery** — both JS conflicts are fixed (session 5); the LCP concern is now understood to be substantially a CCSS-convergence artifact rather than a WebP-specific flaw. Retry once the CCSS queue is confirmed drained and the crawler has completed several successful automatic cycles in a row — give it real wall-clock time (hours), not a same-session retest.
+3. **CSS Combine + Generate UCSS** — same convergence-time caveat as before, now doubly true given the crawler was also broken during that attempt in session 4.
+4. Course-bundle thumbnail right-sizing, Mailchimp cost, and the pre-existing `instant.page` console error — unchanged from prior sessions' conclusions.
