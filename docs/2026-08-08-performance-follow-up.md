@@ -62,3 +62,44 @@ Same 3-of-4-green state as the morning session. No regressions shipped — both 
 2. **A pre-existing `instant.page` console error** (`Identifier 't' has already been declared`, on every page load, all pages tested, confirmed independent of all today's LiteSpeed changes) needs its own investigation — likely a top-level `let`/`const t` collision between instant.page and another site script — independent of today's Performance work, but worth a fix since Lighthouse's Best Practices category can penalize console errors.
 3. Course-bundle thumbnail right-sizing (414–733 KiB depending on device) still open — needs careful Elementor template work, not touched.
 4. **Process note for future LiteSpeed settings changes on this site**: don't trust `find`-ref or JS-triggered clicks on this plugin's toggle switches — verify the intended tab is actually visible via screenshot, click at real on-screen coordinates, and always re-verify via a fresh page load before trusting a save.
+
+## Session 3 (same day) — Critical CSS re-enabled, image fix attempted and reverted, WebP delivery discovered broken and reverted
+
+User asked to push through to green. Applied the process fixes from session 2's notes throughout.
+
+### Critical CSS: successfully re-enabled
+
+- Removed the three `/course-bundle/*` URLs from the LiteSpeed Crawler blocklist (they were auto-blocklisted, presumably from an earlier crawl treating them like the genuinely-gated `/courses/*/lessons/*` pages — confirmed via direct guest fetch that they're real 200-status public pages) so the crawler stops skipping them.
+- Re-enabled Load CSS Asynchronously + CCSS Per URL + Inline CSS Async Lib using verified on-screen-coordinate clicks (per session 2's process note), confirmed persisted via fresh page load. Purged both cache layers (LiteSpeed origin + QUIC.cloud CDN), confirmed `x-qc-cache: miss` on a fresh fetch.
+- Re-ran the console-error check: `instant.page`'s `Identifier 't' has already been declared` is still present — as expected, since session 2 already proved it's pre-existing and unrelated to this setting.
+- PageSpeed Insights re-run (mobile): "Render-blocking requests" and "Improve image delivery" both dropped out of the top-issues list entirely on one run (though a later fetch of the full insights list still showed render-blocking at ~2,880ms, down from ~4,140ms — CCSS was still backfilling across the site at that point, via the crawler + `Run CCSS Queue Manually`). **Left enabled** — this is a real, working improvement.
+
+### Course-bundle thumbnail right-sizing: attempted twice, both reverted
+
+Confirmed the 3 bundle images are rendered by a **Tutor LMS shortcode** (`[tutor_course category="58" id="1879,1880,1881" ...]`), not individual Elementor Image widgets — so there's no per-instance "Image Size" dropdown to change; this rules out the widget-level fix session 2 flagged as the next step.
+
+- **First attempt**: WPCode JS snippet that swapped oversized `<img src>` to WordPress's pre-generated 300×169 "medium" size, triggered on the image's `load` event. **Wrong approach** — by the time `load` fires, the browser has already fully downloaded the oversized original; the swap just added a second wasted request on top. Confirmed via Lighthouse (savings estimate unchanged at exactly 414 KiB — zero credit) and via `performance.getEntriesByType('resource')`.
+- **Second attempt**: rewrote to swap `src` immediately (before load) for `loading="lazy"` images only, gated on display width. Still failed: verified via network entries that the browser had *already* started fetching the full-size original before the footer-placed script ran, even for lazy images — these particular cards sit within the browser's lazy-load preload margin. Result: two full-size images (745–850 KB. real transfer, see next finding) were fetched **plus** a redundant ~34 KB medium fetch. Net negative again. **Deactivated the snippet** (WPCode snippet ID 10913, currently Inactive — left in place, disabled, rather than deleted, in case a template-level fix wants to reuse the sizing logic later).
+- **Conclusion**: a real fix for this specific issue requires either editing Tutor LMS's shortcode/template output directly (theme/plugin-level access, not available via WPCode) or accepting the images as-is. Not solved this session.
+
+### Bigger finding: Imagify's WebP delivery was never actually turned on — fixed, but caused a real regression, reverted
+
+While investigating why the "oversized" thumbnails were costing far more than expected, found that a plain `fetch()` (even with `Accept: image/webp` explicitly set) got back **`image/png`, 850,363 bytes** — not the ~150 KB WebP the Imagify media library dashboard had reported for these exact files back in the morning session. Root cause: **Imagify's "Display images in Next-Gen format on the site" setting was unchecked** (Imagify → Settings → Optimization). Imagify had been *generating* WebP variants (`*.png.webp` files exist on disk, confirmed) but never serving them — the plugin's own delivery mechanism (rewriting `<img>` to `<picture><source type="image/webp">`) was off. This is a site-wide issue, not specific to the 3 bundle thumbnails — every image on every page has been served as a heavier original all along.
+
+- Enabled it, using the `<picture>` tag method (the plugin's own UI warns the `.htaccess`-rewrite-rule alternative "does not work with CDN," and this site is behind QUIC.cloud's CDN). Verified: 94 `<picture>` elements appeared on the homepage; the same starter-bundle image now transferred as **131,620 bytes** (`image/webp`) — an 82% reduction, matching Imagify's original claim.
+- **Found a real visual regression**: the three course-bundle card images went blank (title/byline/button text still rendered, but the image area was empty white space). Diagnosed via computed styles: the image was fully loaded (`naturalWidth: 1672, complete: true`) but had `visibility: hidden` — LiteSpeed Cache's own lazy-load mechanism expects the pre-existing `<img>`/`data-src` pattern to know when to reveal an image, and Imagify's `<picture>`/`<source>` rewrite doesn't preserve whatever attribute LiteSpeed's lazy-load JS was keying off, so its "reveal on load" logic never fires and the image stays permanently hidden.
+- Considered the rewrite-rule alternative instead of `<picture>` tags, but it's explicitly documented as not working through this site's CDN, so it would likely just silently do nothing (safe, but pointless) while still touching `.htaccess`. Given the `<picture>` method's regression is real and site-wide (every lazy-loaded image behind LiteSpeed's lazy-load is presumably affected, not just the 3 bundle cards — the Tutor bundle cards were just the first ones checked), **reverted "Display images in Next-Gen format on the site" back off.** Purged both cache layers, confirmed via fresh page load: 0 `<picture>` elements, all three bundle cards visible again, no other visual issues found on a full page scroll.
+
+### Result
+
+| Category | Mobile | Desktop |
+|---|---|---|
+| Performance | Critical CSS now live and confirmed working (render-blocking savings estimate roughly halved, from ~4.1s to ~2.9s while CCSS was still backfilling) — likely improved from the 55–61 baseline, not re-measured with a final settled score this session | not re-measured |
+| Accessibility | 97 ✅ | 97 ✅ |
+| Best Practices | 96 ✅ | 96 ✅ |
+| SEO | 100 ✅ | 100 ✅ |
+
+**Net change this session: Critical CSS is now live (real win, kept). Two other real wins were found and attempted but had to be reverted** because they broke live rendering (WebP `<picture>` delivery vs. LiteSpeed's lazy-load) or made payload worse, not better (the thumbnail-swap JS snippet). Both are legitimate, valuable fixes for a future session — they just need a different implementation:
+
+1. **WebP delivery is the single biggest lever left** (potentially cutting most images site-wide by ~80%, far bigger than the 3-thumbnail issue this was originally scoped to) — but needs the LiteSpeed-lazy-load conflict resolved first. Options for next time: disable LiteSpeed's own lazy-load and rely on the images' native `loading="lazy"` attribute instead (removes the conflicting mechanism entirely, native lazy-load doesn't use a hidden-until-loaded CSS pattern), or contact Imagify/LiteSpeed support about the specific incompatibility, or test the rewrite-rule method against actual live traffic to see if QUIC.cloud's CDN handles it better than the docs suggest.
+2. Course-bundle thumbnail right-sizing needs Tutor LMS template-level access (not available via WPCode/browser) — out of reach this session.
