@@ -92,12 +92,16 @@ While investigating why the "oversized" thumbnails were costing far more than ex
 
 ### Result
 
+Final PageSpeed Insights run this session (homepage, `x-qc-cache: miss` fresh, CCSS still mid-backfill across the site at this point):
+
 | Category | Mobile | Desktop |
 |---|---|---|
-| Performance | Critical CSS now live and confirmed working (render-blocking savings estimate roughly halved, from ~4.1s to ~2.9s while CCSS was still backfilling) — likely improved from the 55–61 baseline, not re-measured with a final settled score this session | not re-measured |
+| Performance | 61 (up from ~55–61 baseline; render-blocking est. savings down from 4,140ms to 2,790ms) | 56 (down from the 79–80 baseline seen earlier) |
 | Accessibility | 97 ✅ | 97 ✅ |
-| Best Practices | 96 ✅ | 96 ✅ |
+| Best Practices | 100 ✅ (up from 96) | 100 ✅ |
 | SEO | 100 ✅ | 100 ✅ |
+
+Desktop Performance dipping below its earlier 79–80 baseline is very likely a **transient mid-generation state**, not a regression from Critical CSS itself: this specific page's Critical CSS may not have finished generating yet (the crawler processes the site's ~59 URLs a few at a time, several minutes apart), so the page is currently paying the small main-thread cost of the async-CSS-loading script (Total Blocking Time 520ms on this run) without yet getting the corresponding benefit of inlined critical CSS for this exact URL. Confirming this needs a re-check after the crawler has had substantially more real time (hours, not minutes) to finish backfilling — not done this session, flagged for next.
 
 **Net change this session: Critical CSS is now live (real win, kept). Two other real wins were found and attempted but had to be reverted** because they broke live rendering (WebP `<picture>` delivery vs. LiteSpeed's lazy-load) or made payload worse, not better (the thumbnail-swap JS snippet). Both are legitimate, valuable fixes for a future session — they just need a different implementation:
 
