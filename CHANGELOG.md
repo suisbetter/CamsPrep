@@ -1,6 +1,9 @@
 # Changelog
 
 ## 2026-08-08
+### Performance (follow-up)
+- **Site-wide** — set LiteSpeed's Font Display Optimization to `swap` (safe, zero-risk). Tested JS Minify: caused a genuine regression (`instant.page` threw a syntax error on every page load, breaking link prefetching), isolated and confirmed via toggle test, reverted immediately. Performance remains not-green on mobile/desktop — the two remaining blockers are render-blocking CSS (needs QUIC.cloud Critical CSS, flagged for sign-off: cost + FOUC risk) and oversized course-bundle thumbnails (needs careful Elementor template work, not touched blind). No regressions shipped. See [`docs/2026-08-08-performance-follow-up.md`](docs/2026-08-08-performance-follow-up.md).
+
 ### Accessibility
 - **Site-wide** — fixed 5 scored Lighthouse accessibility failures via two WPCode snippets (CSS + JS): prohibited `aria-label` on Elementor testimonial icons, low-contrast course-card price text (`#757c8e` → `#565d6b`), links relying on color alone (added underline to inline text-editor links), undersized Swiper carousel touch targets (6×6px → 24×24px hit area), and missing `<main>` landmark on Elementor full-width pages (home, about, pricing). Accessibility score: 85 → 97 (mobile and desktop). No visual regressions — verified by full page scroll-through and anonymous (logged-out) render check. See [`docs/2026-08-08-all-pagespeed-categories.md`](docs/2026-08-08-all-pagespeed-categories.md).
 
