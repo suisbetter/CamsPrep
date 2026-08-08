@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-08
+### Accessibility
+- **Site-wide** — fixed 5 scored Lighthouse accessibility failures via two WPCode snippets (CSS + JS): prohibited `aria-label` on Elementor testimonial icons, low-contrast course-card price text (`#757c8e` → `#565d6b`), links relying on color alone (added underline to inline text-editor links), undersized Swiper carousel touch targets (6×6px → 24×24px hit area), and missing `<main>` landmark on Elementor full-width pages (home, about, pricing). Accessibility score: 85 → 97 (mobile and desktop). No visual regressions — verified by full page scroll-through and anonymous (logged-out) render check. See [`docs/2026-08-08-all-pagespeed-categories.md`](docs/2026-08-08-all-pagespeed-categories.md).
+
+### Performance
+- **Site-wide** — turned off LiteSpeed Cache's CSS Combine setting (kept Minify on). It was bundling all site CSS into one ~415 KiB file that blocked first paint for ~7.9s (simulated Slow 4G). Now split into ~19 parallel-loading files. Render-blocking savings estimate dropped ~800ms, mobile lab LCP improved further to 6.9s. Performance: mobile 61, desktop 79 — improved but not yet green (90+); getting there needs Critical CSS via QUIC.cloud, a third-party service not enabled without sign-off. See same doc for details and the QUIC.cloud decision point.
+
+## 2026-08-07 (2)
+### Performance
+- **Homepage hero image** — added a `wp_head` preload hint (via WPCode) for the hero `<picture>` image, matching the existing mobile/desktop breakpoint. The hero image itself was already well-optimized (WebP, responsive `<picture>` source, `fetchpriority="high"`, eager-loaded, excluded from lazy-load) — the missing preload was the one real gap. Mobile lab LCP dropped from 18.5s to 7.4s and Performance score from 46 to 59; desktop Performance is at 80. Render-blocking CSS/JS remains the dominant blocker to a green Performance score — separate follow-up. See [`docs/2026-08-07-hero-image-preload.md`](docs/2026-08-07-hero-image-preload.md) for full audit and numbers.
+
 ## 2026-08-07
 ### Fixed
 - **About page** — centered the "About CAMS PREP" text block in the About section. The section's outer Elementor container had a stray `Width: 89%` override with no auto-centering margin, so it hugged the left edge instead of spanning the section (left/right gaps were ~253px/410px). Reset to `Width: 100%` and published to production. Live at [camsprep.com/about](https://camsprep.com/about).
