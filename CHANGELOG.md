@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-08-08 (4)
+### Content & brand consistency, part 4 (continued same session)
+- **User confirmed deletion of the exact duplicate.** Removed the second "Data Privacy, Operational Resilience & Emerging Regs" topic from the Topic Wise CAMS Tests curriculum and published. Verified live: the topic now appears exactly once in the course content list on the front end, and the three colon fixes from part 2 (DNFBPs, FATF, US Sanctions) are still intact.
+
 ## 2026-08-08 (3)
 ### Content & brand consistency (grammar + brand-doc pass)
 - **Backed up the site before any changes** — Duplicator's full-file backup repeatedly hit a "Host Build Interrupt" on this host regardless of file filtering (500MB cap on the Lite resumable format, and the plugin/theme file count alone times out the budget host's PHP execution limit). Since every planned change lives in the database (page content, Elementor settings, user profile), built a **database-only** backup instead (684MB → 61.58MB compressed), completed successfully and stored at `wp-content/backups-dup-lite/` with a matching `installer.php` for one-click restore via Duplicator's "Overwrite Site" flow. Sufficient to revert any of the changes below immediately; does **not** cover uploads/plugin/theme files (untouched by this session).
