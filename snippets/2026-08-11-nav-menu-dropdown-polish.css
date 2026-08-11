@@ -1,0 +1,39 @@
+/* ===================================================================
+   CAMSPREP — Header nav menu & submenu professional polish
+   Scope: Main Header only (.elementor-location-header), both dropdown
+   types used by the primary nav: the simple submenu (About > About Us /
+   Contact Us) and the ElementsKit mega menu (Courses).
+   Status: DRAFT — created as an INACTIVE WPCode snippet, not published.
+   Delivered as CSS (not an Elementor header edit) because the Main
+   Header is an Elementor Theme Builder template applied "Entire Site" —
+   switching it to Draft would deactivate the live header. A WPCode
+   snippet can be prepared and left inactive with zero risk to the
+   currently-published header.
+   =================================================================== */
+
+/* ---- Simple dropdown (About > About Us / Contact Us) ---- */
+.elementor-location-header .sub-menu.elementor-nav-menu--dropdown {
+	border-top: 3px solid #033E8A;
+	border-radius: 0 0 12px 12px;
+	box-shadow: 0 16px 32px rgba(15, 23, 42, 0.14);
+	overflow: hidden;
+	padding: 6px 0;
+}
+
+.elementor-location-header .sub-menu.elementor-nav-menu--dropdown .elementor-sub-item {
+	transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.elementor-location-header .sub-menu.elementor-nav-menu--dropdown .elementor-sub-item:hover,
+.elementor-location-header .sub-menu.elementor-nav-menu--dropdown .elementor-sub-item:focus {
+	background-color: #F0F6FF !important;
+	color: #033E8A !important;
+}
+
+/* ---- Mega menu panel (Courses) ---- */
+.elementor-location-header .elementskit-megamenu-panel {
+	border-top: 3px solid #033E8A;
+	border-radius: 0 0 14px 14px;
+	box-shadow: 0 16px 32px rgba(15, 23, 42, 0.14);
+	overflow: hidden;
+}

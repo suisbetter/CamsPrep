@@ -1,0 +1,204 @@
+/* ===================================================================
+   CAMSPREP — Checkout page professional polish
+   Scope: Tutor LMS /checkout/ page ONLY (.tutor-checkout-page)
+   Status: DRAFT — created as an INACTIVE WPCode snippet, not published.
+   Does not touch Elementor Kit global tokens (colors/fonts) — all
+   overrides are scoped under .tutor-checkout-page so nothing else
+   on the site is affected. Matches CAMS_Prep_Complete_Brand_Source_of_Truth.pdf:
+   headings Manrope 700/600, body Inter 400, buttons Inter 600, navy #033E8A.
+   =================================================================== */
+
+.tutor-checkout-page {
+	--cp-navy: #033E8A;
+	--cp-navy-dark: #022a5f;
+	--cp-navy-tint: #EEF3FB;
+	--cp-border: #E3E7EF;
+	--cp-muted: #5F6673;
+	background: #F7F9FC;
+	padding-top: 32px;
+	padding-bottom: 64px;
+}
+
+.tutor-checkout-page h5,
+.tutor-checkout-page h6 {
+	font-family: 'Manrope', 'Inter', sans-serif;
+}
+
+.tutor-checkout-page,
+.tutor-checkout-page input,
+.tutor-checkout-page select,
+.tutor-checkout-page label,
+.tutor-checkout-page button {
+	font-family: 'Inter', sans-serif;
+}
+
+/* ---- Card containers: give both columns real elevation ---- */
+.tutor-checkout-details-inner,
+.tutor-checkout-billing-inner {
+	background: #fff;
+	border: 1px solid var(--cp-border);
+	border-radius: 14px;
+	padding: 28px;
+	box-shadow: 0 2px 4px rgba(3, 62, 138, 0.04), 0 12px 28px rgba(15, 23, 42, 0.06);
+}
+
+.tutor-checkout-details-inner > h5,
+.tutor-checkout-billing-inner > h5 {
+	font-size: 18px;
+	font-weight: 700;
+	color: #0F172A;
+	border-bottom: 1px solid var(--cp-border) !important;
+	padding-bottom: 14px !important;
+	margin-bottom: 20px !important;
+}
+
+/* ---- Order item row ---- */
+.tutor-checkout-course-item {
+	padding-bottom: 16px;
+}
+
+.tutor-checkout-course-thumb-title img {
+	border-radius: 10px;
+	box-shadow: 0 4px 10px rgba(15, 23, 42, 0.10);
+}
+
+.tutor-checkout-course-bundle-badge {
+	background: var(--cp-navy-tint) !important;
+	color: var(--cp-navy) !important;
+	font-weight: 600;
+	border-radius: 999px;
+	letter-spacing: 0.02em;
+}
+
+.tutor-checkout-course-title {
+	font-weight: 700 !important;
+	color: #0F172A !important;
+}
+
+/* ---- Summary rows ---- */
+.tutor-checkout-summary-item {
+	padding: 10px 0;
+	border-bottom: 1px dashed var(--cp-border);
+}
+
+.tutor-checkout-summary-item:last-child {
+	border-bottom: none;
+}
+
+.tutor-checkout-summary-item .tutor-fw-medium {
+	color: var(--cp-muted);
+	font-weight: 500 !important;
+}
+
+/* Grand total gets its own highlighted strip */
+.tutor-checkout-summary-item:has(.tutor-checkout-grand-total) {
+	background: var(--cp-navy-tint);
+	margin: 8px -16px -4px;
+	padding: 16px;
+	border-radius: 10px;
+	border-bottom: none;
+}
+
+.tutor-checkout-grand-total {
+	color: var(--cp-navy) !important;
+	font-size: 22px !important;
+	font-weight: 800 !important;
+}
+
+/* ---- Coupon row ---- */
+#tutor-toggle-coupon-button {
+	color: var(--cp-navy) !important;
+	text-decoration: underline;
+	font-weight: 600;
+}
+
+.tutor-apply-coupon-form {
+	display: flex;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+.tutor-apply-coupon-form input[name="coupon_code"] {
+	border-radius: 8px !important;
+	border: 1px solid var(--cp-border) !important;
+	padding: 10px 12px !important;
+}
+
+#tutor-apply-coupon-button {
+	border-radius: 8px !important;
+	white-space: nowrap;
+}
+
+/* ---- Billing form fields ---- */
+.tutor-checkout-billing .tutor-form-control {
+	border: 1px solid var(--cp-border) !important;
+	border-radius: 8px !important;
+	padding: 12px 14px !important;
+	font-size: 14px;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tutor-checkout-billing .tutor-form-control:focus {
+	border-color: var(--cp-navy) !important;
+	box-shadow: 0 0 0 3px rgba(3, 62, 138, 0.12) !important;
+	outline: none !important;
+}
+
+.tutor-checkout-billing .tutor-row,
+.tutor-checkout-billing [class*="tutor-col"] {
+	row-gap: 16px;
+}
+
+/* ---- Payment method cards ---- */
+.tutor-payment-method-wrapper h5 {
+	font-size: 18px;
+	font-weight: 700;
+	color: #0F172A;
+}
+
+.tutor-checkout-payment-item {
+	border: 1px solid var(--cp-border) !important;
+	border-radius: 10px !important;
+	padding: 14px 16px !important;
+	margin-bottom: 10px;
+	transition: border-color 0.15s ease, background 0.15s ease;
+	cursor: pointer;
+}
+
+.tutor-checkout-payment-item:hover {
+	border-color: var(--cp-navy) !important;
+}
+
+.tutor-checkout-payment-item:has(input:checked) {
+	border-color: var(--cp-navy) !important;
+	background: var(--cp-navy-tint);
+}
+
+/* ---- Terms row + Pay button ---- */
+.tutor-form-check {
+	color: var(--cp-muted);
+	font-size: 14px;
+}
+
+#tutor-checkout-pay-now-button {
+	border-radius: 10px !important;
+	height: 52px;
+	font-size: 16px !important;
+	font-weight: 700 !important;
+	letter-spacing: 0.01em;
+	box-shadow: 0 8px 20px rgba(3, 62, 138, 0.20);
+	transition: transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+#tutor-checkout-pay-now-button:hover {
+	box-shadow: 0 10px 24px rgba(3, 62, 138, 0.28);
+}
+
+/* ---- Mobile: keep cards full-width with tighter padding ---- */
+@media (max-width: 782px) {
+	.tutor-checkout-details-inner,
+	.tutor-checkout-billing-inner {
+		padding: 20px;
+		border-radius: 12px;
+	}
+}
